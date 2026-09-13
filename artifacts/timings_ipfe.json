@@ -1,63 +1,62 @@
 {
  "grid": {
   "n4": {
-   "vendored": 8949,
-   "pure": 8949,
-   "expected": 8949,
-   "cossim": 0.890574,
+   "vendored": 890078,
+   "pure": 890078,
+   "expected": 890078,
    "ok": true,
-   "t_setup_ms": 369.39,
-   "t_enc_ms": 1.95,
-   "t_key_ms": 0.22,
-   "t_dec_ms": 3.4
+   "t_setup_ms": 578.34,
+   "t_bsgs_step": 2829,
+   "t_bsgs_entries": 2829
   },
   "n8": {
-   "vendored": 348,
-   "pure": 348,
-   "expected": 348,
-   "cossim": 0.036171,
+   "vendored": 36162,
+   "pure": 36162,
+   "expected": 36162,
    "ok": true,
-   "t_setup_ms": 439.71,
-   "t_enc_ms": 3.54,
-   "t_key_ms": 0.07,
-   "t_dec_ms": 11.67
+   "t_setup_ms": 853.19,
+   "t_bsgs_step": 4001,
+   "t_bsgs_entries": 4001
   },
   "n16": {
-   "vendored": 2046,
-   "pure": 2046,
-   "expected": 2046,
-   "cossim": 0.20032,
+   "vendored": 200035,
+   "pure": 200035,
+   "expected": 200035,
    "ok": true,
-   "t_setup_ms": 314.03,
-   "t_enc_ms": 5.9,
-   "t_key_ms": 0.08,
-   "t_dec_ms": 5.6
+   "t_setup_ms": 469.04,
+   "t_bsgs_step": 5657,
+   "t_bsgs_entries": 5657
   },
   "n32": {
-   "vendored": 2026,
-   "pure": 2026,
-   "expected": 2026,
-   "cossim": 0.202654,
+   "vendored": 202543,
+   "pure": 202543,
+   "expected": 202543,
    "ok": true,
-   "t_setup_ms": 1177.05,
-   "t_enc_ms": 13.47,
-   "t_key_ms": 0.12,
-   "t_dec_ms": 9.8
+   "t_setup_ms": 291.44,
+   "t_bsgs_step": 8001,
+   "t_bsgs_entries": 8001
   },
   "n64": {
-   "vendored": 379,
-   "pure": 379,
-   "expected": 379,
-   "cossim": 0.044309,
+   "vendored": 44649,
+   "pure": 44649,
+   "expected": 44649,
    "ok": true,
-   "t_setup_ms": 385.6,
-   "t_enc_ms": 26.94,
-   "t_key_ms": 0.18,
-   "t_dec_ms": 10.72
+   "t_setup_ms": 276.24,
+   "t_bsgs_step": 11314,
+   "t_bsgs_entries": 11314
+  },
+  "n128": {
+   "vendored": 69579,
+   "pure": 69579,
+   "expected": 69579,
+   "ok": true,
+   "t_setup_ms": 745.39,
+   "t_bsgs_step": 16001,
+   "t_bsgs_entries": 16001
   }
  },
  "summary": {
   "all_ok": true,
-  "cases": 5
+  "cases": 6
  }
 }
