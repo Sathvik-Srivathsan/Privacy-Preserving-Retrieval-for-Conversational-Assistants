@@ -5,3 +5,5 @@ demo_index/
 __pycache__/
 *.pyc
 .pytest_cache/
+demo_pipeline.py                                                                                                                                                        
+docs/ 
