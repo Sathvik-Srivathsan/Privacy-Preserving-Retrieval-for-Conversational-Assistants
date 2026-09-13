@@ -1,6 +1,7 @@
 .opencode/
 gdrive/
 artifacts/
+demo_index/
 __pycache__/
 *.pyc
 .pytest_cache/

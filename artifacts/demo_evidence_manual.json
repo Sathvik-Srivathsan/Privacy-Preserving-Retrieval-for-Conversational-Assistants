@@ -1,0 +1,81 @@
+{
+ "runs": [
+  {
+   "query": "What drugs are used to manage the patient's atrial fibrillation rate and rhythm?",
+   "caller": "role:Nurse",
+   "k": 3,
+   "exit": 0,
+   "embed_mode": "live (nomic-embed-text)",
+   "authorized": 3,
+   "generation_triggered": true,
+   "generated_answer": "The patient's atrial fibrillation rate and rhythm are managed with the use of flecainide and amiodarone.",
+   "fraction_grounded": 1.0,
+   "ungrounded_spans": [],
+   "top_k": [
+    {
+     "rank": 1,
+     "doc_id": "nurse_medadmin_note6.txt",
+     "score": 0.548
+    },
+    {
+     "rank": 2,
+     "doc_id": "nurse_handover_note7.txt",
+     "score": 0.4806
+    },
+    {
+     "rank": 3,
+     "doc_id": "nurse_ward_bp_note5.txt",
+     "score": 0.4782
+    }
+   ],
+   "elapsed_s": 17.5,
+   "note": null
+  },
+  {
+   "query": "What were the patient's symptoms and how was rate control managed for atrial fibrillation?",
+   "caller": "role:Doctor, dept: Cardio",
+   "k": 2,
+   "exit": 0,
+   "embed_mode": "live (nomic-embed-text)",
+   "authorized": 2,
+   "generation_triggered": true,
+   "generated_answer": "Mrs. K. presented with palpitations that occurred without warning, predominantly in the evening, characterized as fluttering and skipping beats. She experienced increasing fatigue during mid-afternoon, which she attributed to poor sleep. On brief exertion, such as climbing the stairs to the second floor, she became noticeably short of breath. Her blood pressure was well controlled on amlodipine, and there was no history of chest pain. An ambulatory ECG recording showed intermittent atrial fibrillation with a ventricular rate ranging from 74 to 138 beats per minute, and the rhythm did not self-convert during the nine-day monitoring window. Rate control was managed with metoprolol.",
+   "fraction_grounded": 1.0,
+   "ungrounded_spans": [],
+   "top_k": [
+    {
+     "rank": 1,
+     "doc_id": "cardio_af_note1.txt",
+     "score": 0.7148
+    },
+    {
+     "rank": 2,
+     "doc_id": "cardio_chestpain_note2.txt",
+     "score": 0.6405
+    }
+   ],
+   "elapsed_s": 14.35,
+   "note": null
+  },
+  {
+   "query": "What were the patient's symptoms and how was rate control managed for atrial fibrillation?",
+   "caller": "role:Zebra, dept:Narnia",
+   "k": 2,
+   "exit": 0,
+   "embed_mode": "live (nomic-embed-text)",
+   "authorized": 0,
+   "generation_triggered": false,
+   "generated_answer": null,
+   "fraction_grounded": null,
+   "ungrounded_spans": [],
+   "top_k": [],
+   "elapsed_s": 1.32,
+   "note": null
+  }
+ ],
+ "generated_by": "demo_evidence_manual.py",
+ "date": "2026-09-13",
+ "script": "demo_pipeline.py",
+ "model": "qwen2.5:1.5b",
+ "embed_model": "nomic-embed-text"
+}

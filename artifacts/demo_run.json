@@ -1,0 +1,35 @@
+{
+ "embed_mode": "live (nomic-embed-text)",
+ "n": 768,
+ "group_bits": 128,
+ "quant_bits": 2,
+ "scheme_source": "demo_index/ipfe_scheme.json",
+ "corpus": {
+  "docs": 10,
+  "manifest": [
+   "cardio_af_note1.txt",
+   "cardio_chestpain_note2.txt",
+   "icu_medication_note9.txt",
+   "icu_threshold_note8.txt",
+   "nurse_handover_note7.txt",
+   "nurse_medadmin_note6.txt",
+   "nurse_ward_bp_note5.txt",
+   "oncology_chemo_note3.txt",
+   "oncology_palliative_note4.txt",
+   "patient_discharge_note10.txt"
+  ]
+ },
+ "caller": [
+  "dept:narnia",
+  "role:zebra"
+ ],
+ "query": "What were the patient's symptoms and how was rate control managed for atrial fibrillation?",
+ "timings_ms": {
+  "ingest_s": 0.0,
+  "rank_ms": 0.1,
+  "total_s": 0.168
+ },
+ "top_k": [],
+ "grounding": null,
+ "compare_hashb": null
+}

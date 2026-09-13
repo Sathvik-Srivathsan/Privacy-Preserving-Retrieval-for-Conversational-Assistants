@@ -1,0 +1,12 @@
+{
+  "cardio_af_note1.txt": "role:Doctor AND dept:Cardio",
+  "cardio_chestpain_note2.txt": "role:Doctor AND dept:Cardio",
+  "oncology_chemo_note3.txt": "role:Doctor AND dept:Oncology",
+  "oncology_palliative_note4.txt": "role:Doctor AND dept:Oncology",
+  "nurse_ward_bp_note5.txt": "role:Nurse",
+  "nurse_medadmin_note6.txt": "role:Nurse",
+  "nurse_handover_note7.txt": "role:Nurse",
+  "icu_threshold_note8.txt": "2-of(role:Nurse, clearance:2, role:Pharmacist)",
+  "icu_medication_note9.txt": "2-of(role:Nurse, clearance:2, role:Pharmacist)",
+  "patient_discharge_note10.txt": "role:Patient"
+}
