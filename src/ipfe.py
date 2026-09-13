@@ -144,7 +144,6 @@ def bsgs(g: int, h: int, p: int, x_range: int) -> int:
     for j in range(m):
         tbl.setdefault(cur, j)
         cur = (cur * g) % p
-    factor = pow(g, (p - 1 - m * m % (p - 1)) if False else (p - 1 - (m * m % (p - 1))), p) if False else None
     g_m = pow(g, m, p)
     inv_g_m = modinv(g_m, p)
     gamma = h
@@ -257,14 +256,8 @@ class IPFEScheme:
         return sum(si * vi for si, vi in zip(self.msk, vv)) % self.q
 
     def decrypt(self, Ct: list[int], sk_fe: int) -> int:
-        """IPFE.Decrypt(Ct, sk_fe) -> g^{<q,v>}."""
-        C0 = Ct[0]
-        denom = self._power(C0, sk_fe)
-        num = 1
-        for ci in Ct[1:]:
-            num = (num * ci) % self.p
-        # num = prod_i C_i; need prod_i C_i^{v_i}  -> handled by caller
-        # dec = prod_i C_i^{v_i} / C0^{sk_fe}. See inner_product().
+        """IPFE.Decrypt(Ct, sk_fe) -> g^{<q,v>}. Use inner_product() for the
+        full keyed decrypt (SafeRAG IPFE Eq.7 + canonical BSGS dlog)."""
         raise NotImplementedError("use inner_product for full keyed decrypt")
 
     def inner_product(self, Ct: list[int], sk_fe: int, v: list[float]) -> int:
@@ -273,7 +266,6 @@ class IPFEScheme:
         num = 1
         for ci, vi in zip(Ct[1:], vv):
             num = (num * self._power(ci, vi)) % self.p      # prod C_i^{v_i}
-        C0 = _power_checked(Ct[0], sk_fe, self.p)  # helper due to loop scope
         denom = self._power(Ct[0], sk_fe)          # C0^{sk_fe}
         ratio = (num * modinv(denom, self.p)) % self.p
         # ratio = g^{<q,v>}; recover exponent by BSGS over the quantised range.

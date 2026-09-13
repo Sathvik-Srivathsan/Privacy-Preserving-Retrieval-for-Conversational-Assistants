@@ -4,55 +4,85 @@
    "vendored": 890078,
    "pure": 890078,
    "expected": 890078,
+   "cossim": 0.890574,
    "ok": true,
-   "t_setup_ms": 578.34,
-   "t_bsgs_step": 2829,
-   "t_bsgs_entries": 2829
+   "t_setup_vms": null,
+   "t_enc_v_ms": 7.87,
+   "t_key_v_ms": 0.35,
+   "t_dec_v_ms": 8874.81,
+   "t_enc_ms": 0.87,
+   "t_key_ms": 0.08,
+   "t_dec_ms": 7.19
   },
   "n8": {
    "vendored": 36162,
    "pure": 36162,
    "expected": 36162,
+   "cossim": 0.036171,
    "ok": true,
-   "t_setup_ms": 853.19,
-   "t_bsgs_step": 4001,
-   "t_bsgs_entries": 4001
+   "t_setup_vms": null,
+   "t_enc_v_ms": 12.14,
+   "t_key_v_ms": 0.06,
+   "t_dec_v_ms": 5875.29,
+   "t_enc_ms": 1.45,
+   "t_key_ms": 0.14,
+   "t_dec_ms": 5.45
   },
   "n16": {
    "vendored": 200035,
    "pure": 200035,
    "expected": 200035,
+   "cossim": 0.20032,
    "ok": true,
-   "t_setup_ms": 469.04,
-   "t_bsgs_step": 5657,
-   "t_bsgs_entries": 5657
+   "t_setup_vms": null,
+   "t_enc_v_ms": 20.94,
+   "t_key_v_ms": 0.47,
+   "t_dec_v_ms": 7265.89,
+   "t_enc_ms": 9.9,
+   "t_key_ms": 0.19,
+   "t_dec_ms": 19.48
   },
   "n32": {
    "vendored": 202543,
    "pure": 202543,
    "expected": 202543,
+   "cossim": 0.202654,
    "ok": true,
-   "t_setup_ms": 291.44,
-   "t_bsgs_step": 8001,
-   "t_bsgs_entries": 8001
+   "t_setup_vms": null,
+   "t_enc_v_ms": 47.57,
+   "t_key_v_ms": 0.09,
+   "t_dec_v_ms": 10409.73,
+   "t_enc_ms": 5.22,
+   "t_key_ms": 0.27,
+   "t_dec_ms": 10.9
   },
   "n64": {
    "vendored": 44649,
    "pure": 44649,
    "expected": 44649,
+   "cossim": 0.044309,
    "ok": true,
-   "t_setup_ms": 276.24,
-   "t_bsgs_step": 11314,
-   "t_bsgs_entries": 11314
+   "t_setup_vms": null,
+   "t_enc_v_ms": 83.53,
+   "t_key_v_ms": 0.09,
+   "t_dec_v_ms": 15838.96,
+   "t_enc_ms": 17.34,
+   "t_key_ms": 0.56,
+   "t_dec_ms": 29.25
   },
   "n128": {
    "vendored": 69579,
    "pure": 69579,
    "expected": 69579,
+   "cossim": 0.069078,
    "ok": true,
-   "t_setup_ms": 745.39,
-   "t_bsgs_step": 16001,
-   "t_bsgs_entries": 16001
+   "t_setup_vms": null,
+   "t_enc_v_ms": 153.47,
+   "t_key_v_ms": 0.19,
+   "t_dec_v_ms": 22286.46,
+   "t_enc_ms": 20.3,
+   "t_key_ms": 1.24,
+   "t_dec_ms": 30.79
   }
  },
  "summary": {
