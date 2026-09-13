@@ -3,11 +3,18 @@
 """Retrieval engine: authorised, IPFE-encrypted semantic top-k (SafeRAG §III-B).
 
 Ground truth: SafeRAG encrypts the *row-embedding* and the *query embedding*,
-derives a functional key from the *attribute vector*, and decrypts to the
-inner product of query×document embeddings — on unit-normalised embeddings
-this inner product IS the cosine similarity (Eq. 8). Authorisation is decided
+derives a functional key from the *query vector*, and decrypts to the inner
+product of query×document embeddings — on unit-normalised embeddings this
+inner product IS the cosine similarity (Eq. 8). Authorisation is decided
 earlier by the access tree (Section III-C) so only docs whose policy the
 caller's attribute set satisfies ever reach the encrypted inner-product stage.
+
+T3 wiring: ``cosine_ipfe`` now runs the real encrypted path —
+``IPFE.inner_product(Enc(doc), KeyDerive(query), query)`` → quantised
+``<q_doc, q_query>``; ``/B^2`` with ``B = 10**quant_bits`` recovers the cosine
+on unit-normalised vectors (SafeRAG Eq. 6-8, matches the vendored FeDDH oracle
+in ``tests/test_ipfe_engine.py``, including negative cosines via the BSGS
+inverse branch).
 """
 
 from __future__ import annotations
@@ -23,51 +30,56 @@ from .ipfe import IPFEScheme
 class RetrievedDoc:
     doc_id: str
     score: float
-    group_bits: int
+    group_bits: int = 0
     authorized: bool = True
+
+
+def _policy_of(doc) -> AccessNode | None:
+    cached = getattr(doc, "policy_cached", None)
+    if callable(cached):
+        return cached()
+    return getattr(doc, "policy", None)
 
 
 class RetrievalEngine:
     def __init__(self, ipfe: IPFEScheme, k: int = 5):
+        if ipfe.msk is None:
+            raise ValueError(
+                "RetrievalEngine needs a full IPFEScheme holding the master "
+                "secret to derive the query functional key (msk is None)")
         self.ipfe = ipfe
         self._k = k
 
     # -- authorisation gate (SafeRAG Algorithm 7) ---------------------------- #
     def authorized(self, policy: AccessNode, attrs: Attributes) -> bool:
-        return policy.satisfies(attrs)
+        return bool(policy and policy.satisfies(attrs))
 
     # -- encrypted inner-product = cosine (Eqs. 5-8) ------------------------ #
     def cosine_ipfe(self, ct: list[int], q: list[float]) -> float:
+        """Recover cosine via the REAL encrypted IPFE path.
+
+        ``val = IPFE.inner_product(Enc(doc_vec), KeyDerive(q), q)`` is the
+        quantised ``<q_doc, q_query>``; on unit-normalised embeddings
+        ``val / B**2`` (``B = 10**quant_bits``) IS the cosine similarity.
+        Negative cosines come back negative (BSGS inverse branch).
         """
-        Phase-1 wrapper: plaintext inner product used ONLY where the engine
-        guarantees ciphertext decode in the demo (FeDDH bound). The vendored
-        chain (Phase-2, ``tests.test_vendored_ipfe``) proves the same number
-        comes out of DDH-decrypt; this wrapper keeps the CLI honest.
-        """
-        return sum(a * b for a, b in zip(q, ct_qpad(q)))
+        sk_fe = self.ipfe.key_derive(q)
+        val = self.ipfe.inner_product(ct, sk_fe, q)
+        B = 10 ** self.ipfe.quant_bits
+        return val / (B * B)
 
-    def rank(self, docs, query_vec, attrs):
-        """Return top-k docs whose access tree is satisfied by attrs."""
-        authorised = [d for d in docs if self.authorized(d.policy_cached(), attrs)]
-        scored = [(self.cosine_ipfe(d.ct if hasattr(d, "ct") else None, query_vec), d)
-                  for d in authorised]
-        scored.sort(key=lambda pair: pair[0], reverse=True)
-        return scored[: self._k]
-
-
-def ct_qpad(q) -> list[float]:
-    """Placeholder pad to preserve arity in Phase-1 plaintext demo."""
-    return list(q)
-
-
-class SecureIndex:
-    """Read-side view: nothing here may see plaintext doc text."""
-
-    def __init__(self, entries=None):
-        self._entries = dict(entries or {})
-
-    def add(self, doc_id: str, ct, mpk_bits: int):
-        self._entries[doc_id] = (ct, mpk_bits)
-
-    def get(self, doc_id: str):
-        return self._entries.get(doc_id)
+    def rank(self, docs, query_vec: list[float], attrs: Attributes,
+             k: Optional[int] = None) -> list[RetrievedDoc]:
+        """Return top-k docs whose access tree is satisfied by attrs, scored
+        by the encrypted IPFE cosine (descending)."""
+        k = self._k if k is None else k
+        results = []
+        for d in docs:
+            if not self.authorized(_policy_of(d), attrs):
+                continue
+            results.append(RetrievedDoc(
+                doc_id=str(getattr(d, "doc_id", "")),
+                score=self.cosine_ipfe(d.ct, query_vec),
+                group_bits=int(getattr(d, "group_bits", 0))))
+        results.sort(key=lambda r: r.score, reverse=True)
+        return results[:k]

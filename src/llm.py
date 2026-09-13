@@ -5,8 +5,8 @@ Qwen-2.5 series). Phase-1 uses local Ollama ``qwen2.5:1.5b`` for BOTH
 embeddings and generation (Rs 0, offline-capable).
 
 SafeRAG paper's practical route: an embedding model E maps text->unit vector
-(Eq.  dribble5) and the LLM G generates the grounded answer. Ollama supplies
-both behind one HTTP adapter.
+and the LLM G generates the grounded answer. Ollama supplies both behind one
+HTTP adapter.
 """
 
 from __future__ import annotations
@@ -35,7 +35,6 @@ class OllamaAdapter:
         self.model = model
         self.embed_model = embed_model
         self._session = requests.Session()
-        self.tag = self.check() if False else None  # lazy
 
     # -- state ---------------------------------------------------------- #
     def check(self) -> dict:
@@ -56,6 +55,10 @@ class OllamaAdapter:
         support we use it directly; otherwise we build a *deterministic*
         local embedding (token-hash bag-of-words projected to `dim`, then
         L2-normalised).
+
+        Both branches return EXACTLY `dim` floats: long live embeddings are
+        truncated, short ones zero-padded — so `dim` always matches the IPFE
+        vector length fixed at Setup() time (matters for T7).
         """
         try:
             r = self._session.post(
@@ -66,7 +69,10 @@ class OllamaAdapter:
             r.raise_for_status()
             vec = r.json().get("embedding")
             if vec:
-                return _l2normalize(vec, dim) if normalize else list(vec)[:dim]
+                v = list(vec)
+                if len(v) < dim:
+                    v = v + [0.0] * (dim - len(v))
+                return _l2normalize(v, dim) if normalize else v[:dim]
         except Exception:
             pass
         # deterministic fallback: fast hashing projection

@@ -6,7 +6,7 @@ SafeRAG tags each document d with an access tree T_d built from attribute
 index terms (role, department, clearance) and evaluates it against the
 caller's attribute set. Every term in a *query token* is itself an attribute
 index term, so authorisation is checked per top-k candidate before the IPFE
-inner product is ever decrypted (Algorithms 3-7, Figure  Bromaid).
+inner product is ever decrypted (Algorithms 3-7).
 """
 
 from __future__ import annotations
@@ -30,8 +30,13 @@ class Attribute:
 
     @classmethod
     def parse(cls, text: str) -> "Attribute":
+        text = text.strip()
+        if ":" not in text:
+            raise ValueError(
+                f"attribute must be explicit 'key:value', got {text!r}; "
+                "write 'role:Doctor' (not 'Doctor') - the DSL never guesses a namespace")
         k, _, v = text.partition(":")
-        return cls(k.strip().lower(), v.strip())
+        return cls(k.strip().lower(), v.strip().lower())
 
 
 @dataclass(frozen=True)
@@ -42,14 +47,7 @@ class Attributes:
 
     def __init__(self, toks):
         # normalise all tokens to lower-case key:value
-        norm = set()
-        for t in toks:
-            t = t.strip().lower()
-            if ":" in t:
-                norm.add(t)
-            else:
-                # bare token -> key derives from first seg; keep as-is
-                norm.add(t)
+        norm = {t.strip().lower() for t in toks}
         object.__setattr__(self, "toks", frozenset(norm))
 
     @classmethod
@@ -108,7 +106,12 @@ class LeafNode(AccessNode):
         if isinstance(attr, str):
             attr = Attribute.parse(attr)
         self.tok = f"{attr.key}:{attr.value}"
-        self.key, self.value = attr.key, attr.value
+        self.value = attr.value
+
+    @property
+    def key(self) -> str:
+        """Attribute key, derived from ``tok`` (kept out of dataclass eq/repr)."""
+        return self.tok.split(":", 1)[0]
 
     def satisfies(self, attrs: Attributes) -> bool:
         return self.tok in attrs
@@ -162,9 +165,15 @@ def k_of_n(k: int, *children: AccessNode) -> ThresholdNode:
 
 
 def build_tree(expr: str) -> AccessNode:
-    """DSL: ''Doctor AND (Cardio OR Neuro) AND 2-of(Clearance:2,role:Nurse)''."""
+    """DSL: 'role:Doctor AND (dept:Cardio OR dept:Neuro) AND 2-of(Clearance:2,role:Nurse)'.
+
+    Every attribute is explicit ``key:value``; colonless bare words raise
+    ValueError (no namespace guessing - 'Doctor' vs 'Cardio' are never
+    distinguished implicitly, only by their explicit key).
+    """
     expr = expr.strip()
-    # very small recursive-descent for AND/OR/parens; k-of() via ThresholdNode
+    if not expr:
+        raise ValueError("empty access-tree expression")
     return _parse_or(expr)
 
 
@@ -184,9 +193,14 @@ def _parse_atom(s: str) -> AccessNode:
     s = s.strip()
     if s.startswith("(") and s.endswith(")"):
         return _parse_or(s[1:-1])
-    if s.lower().startswith("2-of") or s.lower().startswith("k-of"):
+    m = re.match(r"(?:k|(\d+))-of\(", s, re.IGNORECASE)
+    if m:
+        if m.group(1) is None:
+            raise ValueError(
+                f"literal 'k-of' placeholder in {s!r}; use an integer threshold "
+                "(e.g. '2-of(...)') so the policy is well-defined")
+        k = int(m.group(1))
         inner = s[s.index("(") + 1: s.rindex(")")]
-        k = 2 if s.lower().startswith("2-of") else 2
         children = [_parse_atom(x) for x in _split_top(inner, ",")]
         return ThresholdNode(k, children)
     # leaf attribute token, strip quotes
@@ -197,7 +211,7 @@ def _split_top(s: str, sep: str) -> list[str]:
     """Split on separator not inside parentheses."""
     out, depth, cur = [], 0, ""
     i = 0
-    tokens = re.split(r"(\(|\)|\bAND\b|\bOR\b)", s)  # noqa: SIM905
+    tokens = re.split(r"(\(|\)|,|\bAND\b|\bOR\b)", s)  # noqa: SIM905
     for tok in tokens:
         if tok == "":
             continue

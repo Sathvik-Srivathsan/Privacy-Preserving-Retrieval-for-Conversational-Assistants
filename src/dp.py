@@ -11,16 +11,28 @@ ships the baseline Laplace + the controller seam.
 
 from __future__ import annotations
 
-import secrets
 import math
+
+from secrets import SystemRandom
+
+_sysrand = SystemRandom()
 
 
 def laplace_noise(sensitivity: float, eps: float) -> float:
-    """Y ~ Laplace(0, sensitivity/eps) via inverse-CDF sampling."""
-    u = secrets.random()          # (0,1)
-    u = max(u, 1e-12)
+    """Y ~ Laplace(0, sensitivity/eps) via inverse-CDF sampling.
+
+    Two-sided, cancellation-free: u<0.5 -> x = b*ln(2u), u>=0.5 ->
+    x = -b*ln(2(1-u)). Computed as ``2*u`` / ``2*(1-u)`` directly (NOT
+    ``1+2*(u-0.5)``) so tail draws near u->0/1 keep full float precision —
+    that is exactly the regime where DP noise magnitude matters. (The naive
+    ``-b*sign*ln(1-2|u-0.5|)`` form both cancels catastrophically AND
+    mirrors the negative tail into a folded, always-non-negative distribution.)
+    """
+    u = max(_sysrand.random(), 1e-12)
     b = sensitivity / max(eps, 1e-12)
-    return -b * math.copysign(math.log(1.0 - 2.0 * abs(u - 0.5)), u - 0.5)
+    if u >= 0.5:
+        return -b * math.log(2.0 * (1.0 - u))
+    return b * math.log(2.0 * u)
 
 
 def clamp(x: float, lo: float | None = None, hi: float | None = None) -> float:
@@ -59,9 +71,8 @@ class AdaptiveEpsDP(FixedEpsDP):
     def budget(self, query: list[float] | None = None) -> float:
         if query is None or len(query) == 0:
             return self.eps
-        # simple context signal: longer queries tolerate less noise => small eps
-        import numpy as np
-        scale = float(np.linalg.norm(query))
-        # logical size proxy — longer vectors => more info content => higher eps
+        # design intent (code follows this): a longer query carries more
+        # information content => higher privacy budget (less noise);
+        # saturates at eps_max once length >= 512.
         frac = min(1.0, len(query) / 512.0)
         return self.eps_min + (self.eps_max - self.eps_min) * frac

@@ -9,6 +9,8 @@ verifier; also exposes `verify_grounded` which the CLI wires to diagnostics.
 
 from __future__ import annotations
 
+import re
+
 from dataclasses import dataclass
 
 
@@ -22,13 +24,39 @@ class GroundingReport:
             self.ungrounded_spans = []
 
 
+# Content words only may anchor a claim. Common English stopwords are
+# excluded so two sentences do NOT register as "grounded" by sharing an
+# article/preposition by chance - otherwise a hallucinated claim could fake
+# its way in with stopword-only overlap ("The dog is a cat." vs
+# "The stock market is a factor." would both strip to content and differ).
+_STOPWORDS = frozenset({
+    "a", "an", "the", "and", "or", "but", "of", "to", "in", "on", "for",
+    "with", "at", "by", "from", "as", "it", "its", "is", "are", "was",
+    "were", "be", "been", "being", "this", "that", "these", "those", "not",
+    "no", "i", "you", "he", "she", "we", "they", "do", "does", "did",
+    "will", "would", "can", "could", "should", "have", "has", "had",
+    "there", "then", "than", "so", "about", "into", "over", "under",
+    "after", "before", "between", "up", "out",
+})
+
+
 def verify_grounded(response: str, chunks: list[str]) -> GroundingReport:
     """
     Phase-2 contract: every sentence in `response` must have a lexical
-    overlap anchor in at least one authorised `chunk`. Full n-gram trace
-    is deferred; this returns a based-on-overlap estimate.
+    content-word overlap anchor in at least one authorised `chunk`. Full
+    n-gram trace is deferred; this returns a based-on-overlap estimate.
+
+    Stopwords are stripped before overlap counting, so "grounded" requires
+    a shared content token, not a chance-shared article/preposition.
+
+    KNOWN LIMITATION (span offsets): the ungrounded spans advance ``pos`` by
+    ``len(sentence) + 1``, assuming exactly one space between sentences.
+    Irregular whitespace in real LLM output (double spaces, newlines) will
+    drift the reported ``(start, end)`` offsets from the true index into
+    ``response``. Harmless for the fraction score, but MUST be recomputed
+    against the real response before any redaction ("flag/redact/re-answer")
+    uses them.
     """
-    import re
     sentences = re.split(r"(?<=[.!?])\s+", response.strip())
     total, grounded = 0, 0
     ungrounded = []
@@ -37,10 +65,10 @@ def verify_grounded(response: str, chunks: list[str]) -> GroundingReport:
         if not s.strip():
             continue
         total += 1
-        toks = set(re.findall(r"[a-z0-9']+", s.lower()))
+        toks = set(re.findall(r"[a-z0-9']+", s.lower())) - _STOPWORDS
         overlap = False
         for chunk in chunks:
-            ctoks = set(re.findall(r"[a-z0-9']+", chunk.lower()))
+            ctoks = set(re.findall(r"[a-z0-9']+", chunk.lower())) - _STOPWORDS
             if len(toks & ctoks) >= 1:
                 overlap = True
                 break

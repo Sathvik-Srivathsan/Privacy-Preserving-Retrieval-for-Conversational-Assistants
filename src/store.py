@@ -11,7 +11,6 @@ adapter interface now and pop the key question when the rig is run.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import uuid
@@ -34,20 +33,49 @@ class StoredChunk:
 
 
 class LocalStore:
-    """Local dev-store: Fernet-encrypted blobs on disk (no cloud cost)."""
+    """Local dev-store: Fernet-encrypted blobs on disk (no cloud cost).
 
-    def __init__(self, root: str, key: Optional[bytes] = None):
+    Hard-requires the ``cryptography`` package (Fernet): this store's whole
+    job is encrypted-at-rest, so running unencrypted is REFUSED rather than
+    silently degrading (a no-Fernet fallback would drop the chunk ``tag``/``meta``
+    — the access-control metadata — and so is not allowed).
+
+    Key persistence: the first time a store directory is opened, a key is
+    generated and saved next to the blobs as ``store.key``. Later openings of
+    the same directory reuse that key, so a corpus written in one session
+    stays readable in a later session (build once, query later). Callers may
+    override by passing an explicit ``key`` (their responsibility to keep it).
+    """
+
+    KEY_FILENAME = "store.key"
+
+    def __init__(self, root: str, key: Optional[bytes] = None,
+                 key_file: Optional[str] = None):
+        if not _HAS_FERNET:
+            raise RuntimeError(
+                "LocalStore requires the 'cryptography' package (Fernet); "
+                "refusing to run with the insecure plaintext fallback")
         self.root = root
         os.makedirs(root, exist_ok=True)
-        if key is None:
-            key = Fernet.generate_key() if _HAS_FERNET else _dev_key()
-        self.key = key
-        if _HAS_FERNET:
-            self._fernet = Fernet(key)
+        self.key_file = key_file or os.path.join(root, self.KEY_FILENAME)
+        if key is not None:
+            self.key = key
+        elif os.path.exists(self.key_file):
+            with open(self.key_file, "rb") as f:
+                self.key = f.read()
+        else:
+            self.key = Fernet.generate_key()
+            self.save_key()
+        self._fernet = Fernet(self.key)
+
+    def save_key(self, path: Optional[str] = None) -> None:
+        """Persist the current Fernet key (default: ``store.key`` in the root)."""
+        with open(path or self.key_file, "wb") as f:
+            f.write(self.key)
 
     def put(self, chunk: StoredChunk) -> None:
         p = os.path.join(self.root, f"{chunk.chunk_id}.blob")
-        payload = chunk.blob if not _HAS_FERNET else self._fernet.encrypt(
+        payload = self._fernet.encrypt(
             json.dumps({"b": chunk.blob.decode("latin-1"), "tag": chunk.tag,
                         "meta": chunk.meta}).encode("utf-8"))
         with open(p, "wb") as f:
@@ -59,10 +87,8 @@ class LocalStore:
             return None
         with open(p, "rb") as f:
             raw = f.read()
-        if _HAS_FERNET:
-            d = json.loads(self._fernet.decrypt(raw).decode("utf-8"))
-            return StoredChunk(chunk_id, d["b"].encode("latin-1"), d["tag"], d["meta"])
-        return StoredChunk(chunk_id, raw, "tag:" + hashlib.sha256(raw).hexdigest()[:12])
+        d = json.loads(self._fernet.decrypt(raw).decode("utf-8"))
+        return StoredChunk(chunk_id, d["b"].encode("latin-1"), d["tag"], d["meta"])
 
     def list_ids(self) -> list[str]:
         return [f[:-5] for f in os.listdir(self.root) if f.endswith(".blob")]
@@ -99,14 +125,49 @@ class GoogleDriveStore:
         svc = self._connect()
         folder = self._ensure_folder(svc)
         body = {"name": f"{chunk.chunk_id}.blob", "parents": [folder],
-                "description": "encrypted SafeRAG chunk (ciphertext only)"}
-        media = MediaIoUpload(chunk.blob, "*/*", chunksize=256 * 1024)
+                "description": json.dumps({"tag": chunk.tag, "meta": chunk.meta})}
+        media = upload_media(chunk.blob, "*/*", chunksize=256 * 1024)
         fl = svc.files().create(body=body, media_body=media,
                                 fields="id,webViewLink").execute()
         return fl.get("webViewLink")
 
     def get(self, chunk_id: str) -> StoredChunk | None:
-        raise NotImplementedError("Drive read path wired in Phase-2 harness")
+        svc = self._connect()
+        folder = self._ensure_folder(svc)
+        q = (f"name='{chunk_id}.blob' and '{folder}' in parents and trashed=false")
+        res = svc.files().list(q=q, fields="files(id,name,description)").execute()
+        files = res.get("files", [])
+        if not files:
+            return None
+        blob = svc.files().get_media(fileId=files[0]["id"]).execute()
+        tag, meta = "", {}
+        try:
+            d = json.loads(files[0].get("description", "{}"))
+            tag = str(d.get("tag", ""))
+            m = d.get("meta", {})
+            if isinstance(m, dict):
+                meta = m
+        except (TypeError, ValueError):
+            pass
+        return StoredChunk(chunk_id, blob, tag, meta)
+
+    def list_ids(self) -> list[str]:
+        svc = self._connect()
+        folder = self._ensure_folder(svc)
+        names, page_token = [], None
+        while True:
+            res = svc.files().list(
+                q=f"'{folder}' in parents and trashed=false",
+                fields="nextPageToken,files(name)",
+                pageToken=page_token).execute()
+            for fl in res.get("files", []):
+                name = fl.get("name", "")
+                if name.endswith(".blob"):
+                    names.append(name[:-5])
+            page_token = res.get("nextPageToken")
+            if not page_token:
+                break
+        return names
 
     def _ensure_folder(self, svc) -> str:
         q = (f"name='{self.folder_name}' and mimeType='application/vnd.google-apps.folder' "
@@ -121,11 +182,9 @@ class GoogleDriveStore:
         return f.get("id")
 
 
-def _dev_key() -> bytes:
-    return hashlib.sha256(b"SafeRAG-Improved-dev").digest()
-
-
-# re-export MediaIoUpload lazily (heavy import only when GDrive used)
-def MediaIoUpload(data, mime_type, chunksize):
-    from googleapiclient.http import MediaIoUpload as _M
+# re-export upload media lazily (heavy import only when GDrive used).
+# NOTE: newer google-api-python-client has MediaInMemoryUpload (bytes),
+# not the old MediaIoUpload — this callback name is intentionally gone.
+def upload_media(data: bytes, mime_type: str, chunksize: int):
+    from googleapiclient.http import MediaInMemoryUpload as _M
     return _M(data, mime_type, chunksize=chunksize)

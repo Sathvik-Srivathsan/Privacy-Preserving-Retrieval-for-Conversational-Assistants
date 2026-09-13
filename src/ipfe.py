@@ -222,9 +222,6 @@ class IPFEScheme:
         msk = [secrets.randbelow(gp.q) for _ in range(vec_len)]
         mpk = [pow(gp.g, si, gp.p) for si in msk]
 
-        s2gpi = {}
-        for i, si in enumerate(msk):
-            pass
         return cls(gp.p, gp.q, gp.g, mpk, msk, vec_len, quant_bits)
 
     # -- quantisation ------------------------------------------------ #
@@ -278,12 +275,3 @@ class IPFEScheme:
             invratio = pow(ratio, -1, self.p)     # g^{|<q,v>|}
             x = -tbl.dlog(invratio, self._range)
         return x
-
-
-def _power_checked(base: int, e: int, p: int) -> int:
-    return pow(base, e, p)
-
-
-
-
-
