@@ -1,0 +1,16 @@
+# SafeRAG-Improved runtime dependencies (Phase-1 verified set, pinned 2026-09-13).
+# Strategy: ZERO new mandatory deps in Phase-2 (HMAC=stdlib hmac; Shamir=stdlib big-int;
+# ZKP=stdlib pow+secrets; cloud server=stdlib http.server; voice=numpy-only synthetic).
+# Only add here what the code ACTUALLY imports.
+#
+# HARD requirements (imported at runtime / by tests):
+cryptography==48.0.1        # Fernet keys in LocalStore (src/store.py)
+google-api-python-client==2.197.0  # GoogleDriveStore (src/store.py, honest-but-curious)
+google-auth==2.53.0         # google.oauth2 service_account for GDrive
+requests==2.34.2            # OllamaAdapter HTTP (src/llm.py + tests)
+numpy==2.4.6                # test vectors + Phase-1 suites (tests/)
+pytest==8.4.2               # battery runner
+#
+# OPTIONAL (not required by any test; present on the 2026-09-13 box):
+# ollama                # NEVER imported - llm.py talks raw HTTP to /api/embeddings + /api/generate
+# sympy==1.14.0         # present but ZERO imports across the project (vendored-oracle estimate kept local)
