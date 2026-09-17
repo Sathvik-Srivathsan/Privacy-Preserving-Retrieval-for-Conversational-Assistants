@@ -74,6 +74,44 @@ def test_reconstruct_order_independent():
     assert reconstruct([b, a], P17) == SECRET5
 
 
+def _is_probable_prime(n, bases=(2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37)):
+    """Miller-Rabin over fixed small-prime bases (deterministic sanity for
+    ~257-bit candidates; fails loudly if a prime-generator ever misbehaves)."""
+    if n < 2 or n % 2 == 0:
+        return n == 2
+    if any(n % b == 0 for b in bases):
+        return False
+    d, r = n - 1, 0
+    while d % 2 == 0:
+        d //= 2
+        r += 1
+    for a in bases:
+        x = pow(a, d, n)
+        if x in (1, n - 1):
+            continue
+        for _ in range(r - 1):
+            x = pow(x, 2, n)
+            if x == n - 1:
+                break
+        else:
+            return False
+    return True
+
+
+def test_new_field_prime_is_really_257_bit_and_primal():
+    """LIVE assertion behind the DD-4 'field fits any 256-bit K' claim — not
+    prose: getPrime(257) must return a probable prime in [2^256, 2^257), and the
+    MAXIMAL 256-bit K (2^256 - 1) must be an in-field secret that round-trips."""
+    prime = new_field_prime()
+    assert 2 ** 256 <= prime < 2 ** 257, "off-by-one in bit-length convention"
+    assert prime & 1, "getPrime returned an even number"
+    assert _is_probable_prime(prime), "getPrime returned a composite"
+    k_max = (1 << 256) - 1                                  # biggest possible K
+    assert k_max < prime
+    shares = split(k_max, 2, 3, prime)
+    assert reconstruct(shares[:2], prime) == k_max
+
+
 def test_wrong_share_substitution_fails():
     # hand-fixed polys over GF(17), no RNG, so the asserts are deterministic:
     #   f(x) = 5 + 3x   -> (1,8) (2,11) (3,14)

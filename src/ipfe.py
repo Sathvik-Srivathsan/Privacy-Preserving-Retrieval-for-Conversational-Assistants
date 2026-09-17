@@ -275,3 +275,24 @@ class IPFEScheme:
             invratio = pow(ratio, -1, self.p)     # g^{|<q,v>|}
             x = -tbl.dlog(invratio, self._range)
         return x
+
+    def inner_product_q(self, Ct: list[int], sk_fe: int, v_ints: list[int]) -> int:
+        """Like inner_product() but takes pre-quantised int vectors directly.
+
+        Skips the float → int quantisation step so a client holding already-
+        quantised query integers can send them straight to the cipher-side
+        server without a float round-trip that risks double-quantisation
+        (DD-2(b) seam, added for P2-D cloud query path).
+        """
+        num = 1
+        for ci, vi in zip(Ct[1:], v_ints):
+            num = (num * self._power(ci, vi)) % self.p      # prod C_i^{v_i}
+        denom = self._power(Ct[0], sk_fe)          # C0^{sk_fe}
+        ratio = (num * modinv(denom, self.p)) % self.p
+        tbl = get_bsgs_table(self.g, self.p, self._range)
+        try:
+            x = tbl.dlog(ratio, self._range)
+        except DiscreteLogNotFound:
+            invratio = pow(ratio, -1, self.p)
+            x = -tbl.dlog(invratio, self._range)
+        return x
